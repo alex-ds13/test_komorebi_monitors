@@ -1,0 +1,7 @@
+[package]
+name = "test_komorebi_monitors"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+win32-display-data = { git = "https://github.com/LGUG2Z/win32-display-data", rev = "dd65e3f22d0521b78fcddde11abc2a3e9dcc32a8" }
