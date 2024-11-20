@@ -6,15 +6,18 @@ fn main() {
         (1, "MSI3EA5-7&ddb079d&0&UID260".into()),
         (2, "DELA07B-7&ddb079d&0&UID256".into()),
     ]);
-    let vd = VecDeque::new();
-    let res = load_monitor_information(vd, display_index_preferences);
-    println!("Result: {:#?}", res);
+    let vd_new = VecDeque::new();
+    let vd_old = VecDeque::new();
+    let res = load_monitor_information(vd_new, vd_old, display_index_preferences);
+    println!("Result New: {:#?}", res.0);
+    println!("Result Old: {:#?}", res.1);
 }
 
 pub fn load_monitor_information(
-    mut monitors: VecDeque<(usize, String, String)>,
+    mut monitors_new: VecDeque<(usize, String, String)>,
+    mut monitors_old: VecDeque<(usize, String, String)>,
     display_index_preferences: HashMap<usize, String>,
-) -> VecDeque<(usize, String, String)> {
+) -> (VecDeque<(usize, String, String)>, VecDeque<(usize, String, String)>) {
     'read: for display in win32_display_data::connected_displays_all().flatten() {
         let path = display.device_path.clone();
 
@@ -40,23 +43,36 @@ pub fn load_monitor_information(
         }
 
         if let Some(preference) = index_preference {
-            while *preference >= monitors.len() {
-                monitors.push_back((*preference, "PLACEHOLDER".into(), "".into()));
+            while *preference >= monitors_new.len() {
+                monitors_new.push_back((*preference, "PLACEHOLDER".into(), "".into()));
             }
 
-            let current_name = monitors.get(*preference).map_or("", |(_idx, n, _id)| n);
+            let current_name = monitors_new.get(*preference).map_or("", |(_idx, n, _id)| n);
             if current_name == "PLACEHOLDER" {
-                let _ = monitors.remove(*preference);
-                monitors.insert(*preference, (*preference, name, device_id));
+                let _ = monitors_new.remove(*preference);
+                monitors_new.insert(*preference, (*preference, name.clone(), device_id.clone()));
             } else {
-                monitors.insert(*preference, (*preference, name, device_id));
+                monitors_new.insert(*preference, (*preference, name.clone(), device_id.clone()));
             }
         } else {
-            monitors.push_back((usize::MAX, name, device_id));
+            monitors_new.push_back((usize::MAX, name.clone(), device_id.clone()));
+        }
+
+        if monitors_old.is_empty() {
+            monitors_old.push_back((usize::MAX, name, device_id));
+        } else if let Some(preference) = index_preference {
+            while *preference > monitors_old.len() {
+                monitors_old.push_back((*preference, "PLACEHOLDER".into(), "".into()));
+            }
+
+            monitors_old.insert(*preference, (*preference, name, device_id));
+        } else {
+            monitors_old.push_back((usize::MAX, name, device_id));
         }
     }
 
-    monitors.retain(|m| m.1.ne("PLACEHOLDER"));
+    monitors_new.retain(|m| m.1.ne("PLACEHOLDER"));
+    monitors_old.retain(|m| m.1.ne("PLACEHOLDER"));
 
-    monitors
+    (monitors_new, monitors_old)
 }
